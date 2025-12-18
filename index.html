@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photobox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        /* Template Selection */
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .template-card {
+            border: 3px solid #ddd;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f9f9f9;
+        }
+
+        .template-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .template-card.selected {
+            border-color: #667eea;
+            background: #e8ebff;
+        }
+
+        .template-preview {
+            width: 100%;
+            height: 300px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .template-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .template-name {
+            text-align: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        /* Camera */
+        .camera-container {
+            text-align: center;
+        }
+
+        video {
+            width: 100%;
+            max-width: 640px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .photo-progress {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .photo-indicator {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #999;
+        }
+
+        .photo-indicator.taken {
+            background: #4caf50;
+            color: white;
+            border-color: #4caf50;
+        }
+
+        .photo-indicator.current {
+            border-color: #667eea;
+            color: #667eea;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .countdown {
+            font-size: 6em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            animation: countdown 1s ease-in-out;
+        }
+
+        @keyframes countdown {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+        }
+
+        .btn-success:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #666;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #555;
+        }
+
+        /* Result */
+        .result-container {
+            text-align: center;
+        }
+
+        #resultCanvas {
+            max-width: 100%;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+        }
+
+        canvas {
+            display: none;
+        }
+
+        #resultCanvas {
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📸 Photobox</h1>
+
+        <!-- Step 1: Template Selection -->
+        <div id="stepTemplate" class="step active">
+            <h2 style="text-align: center; margin-bottom: 30px;">Pilih Template</h2>
+            <div class="template-grid">
+                <div class="template-card" onclick="selectTemplate(1)">
+                    <div class="template-preview">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Cdefs%3E%3ClinearGradient id='bg1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23a8b5b8'/%3E%3Cstop offset='100%25' style='stop-color:%2394a5a8'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='900' fill='url(%23bg1)'/%3E%3Crect x='125' y='105' width='475' height='330' fill='white' stroke='%23ddd' stroke-width='8' rx='15'/%3E%3Crect x='625' y='105' width='475' height='330' fill='white' stroke='%23ddd' stroke-width='8' rx='15'/%3E%3Crect x='125' y='470' width='475' height='330' fill='white' stroke='%23ddd' stroke-width='8' rx='15'/%3E%3Crect x='625' y='470' width='475' height='330' fill='white' stroke='%23ddd' stroke-width='8' rx='15'/%3E%3Cpath d='M 160 410 Q 165 405 170 410 Q 165 415 160 410' fill='%236b8e95'/%3E%3Cpath d='M 660 410 Q 665 405 670 410 Q 665 415 660 410' fill='%236b8e95'/%3E%3Cpath d='M 160 775 Q 165 770 170 775 Q 165 780 160 775' fill='%236b8e95'/%3E%3Cpath d='M 660 775 Q 665 770 670 775 Q 665 780 660 775' fill='%236b8e95'/%3E%3C/svg%3E" alt="Template 1">
+                    </div>
+                    <div class="template-name">Social Media Grid</div>
+                </div>
+
+                <div class="template-card" onclick="selectTemplate(2)">
+                    <div class="template-preview">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Cdefs%3E%3ClinearGradient id='bg2' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23b8d4e8'/%3E%3Cstop offset='100%25' style='stop-color:%23a8c8dc'/%3E%3C/linearGradient%3E%3CradialGradient id='balloon1'%3E%3Cstop offset='0%25' style='stop-color:%234a9fd8'/%3E%3Cstop offset='100%25' style='stop-color:%232a7fb8'/%3E%3C/radialGradient%3E%3CradialGradient id='balloon2'%3E%3Cstop offset='0%25' style='stop-color:%235aafed'/%3E%3Cstop offset='100%25' style='stop-color:%233a8fcd'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='1200' height='900' fill='url(%23bg2)'/%3E%3Cellipse cx='120' cy='45' rx='65' ry='70' fill='url(%23balloon1)'/%3E%3Cpath d='M 120 115 Q 115 125 110 140' stroke='%232a7fb8' stroke-width='2' fill='none'/%3E%3Cellipse cx='250' cy='25' rx='70' ry='75' fill='url(%23balloon2)'/%3E%3Cpath d='M 250 100 Q 245 115 238 135' stroke='%233a8fcd' stroke-width='2' fill='none'/%3E%3Cellipse cx='400' cy='50' rx='60' ry='65' fill='url(%23balloon1)'/%3E%3Cpath d='M 400 115 Q 395 125 390 145' stroke='%232a7fb8' stroke-width='2' fill='none'/%3E%3Cellipse cx='1050' cy='40' rx='68' ry='73' fill='url(%23balloon2)'/%3E%3Cpath d='M 1050 113 Q 1045 125 1038 145' stroke='%233a8fcd' stroke-width='2' fill='none'/%3E%3Cellipse cx='1180' cy='820' rx='55' ry='60' fill='url(%23balloon1)'/%3E%3Cpath d='M 1180 880 Q 1175 890 1170 905' stroke='%232a7fb8' stroke-width='2' fill='none'/%3E%3Cpath d='M 250 60 Q 350 80 450 60 Q 550 40 650 55 Q 750 70 850 50 Q 950 35 1050 45' stroke='%232a7fb8' stroke-width='3' fill='none' opacity='0.6'/%3E%3Cpath d='M 280 85 Q 370 95 460 88 Q 560 75 660 82 Q 760 92 860 78 Q 960 68 1040 75' stroke='%233a8fcd' stroke-width='3' fill='none' opacity='0.5'/%3E%3Ctext x='45' y='150' font-family='Georgia, serif' font-size='70' font-weight='bold' fill='%231e3a5f' letter-spacing='-2'%3EHAPPY%3C/text%3E%3Ctext x='45' y='230' font-family='Georgia, serif' font-size='70' font-weight='bold' fill='%231e3a5f' letter-spacing='-2'%3EBIRTHDAY%3C/text%3E%3Crect x='50' y='280' width='470' height='260' fill='white' stroke='%23e0e0e0' stroke-width='12' rx='8'/%3E%3Crect x='560' y='100' width='580' height='440' fill='white' stroke='%23e0e0e0' stroke-width='12' rx='8'/%3E%3Crect x='50' y='565' width='360' height='240' fill='white' stroke='%23e0e0e0' stroke-width='12' rx='8'/%3E%3Crect x='430' y='565' width='360' height='240' fill='white' stroke='%23e0e0e0' stroke-width='12' rx='8'/%3E%3Cpath d='M 30 850 Q 35 840 45 845 L 50 860 Q 45 870 35 865 Z' fill='%232a7fb8'/%3E%3Cpath d='M 35 845 L 32 865 L 28 880 L 25 895' stroke='%232a7fb8' stroke-width='2' fill='none'/%3E%3Cpath d='M 45 850 L 48 868 L 52 883 L 55 898' stroke='%232a7fb8' stroke-width='2' fill='none'/%3E%3Ctext x='880' y='885' font-family='Arial, sans-serif' font-size='20' fill='%231e3a5f'%3Ewww.reallygreatsite.com%3C/text%3E%3C/svg%3E" alt="Template 2">
+                    </div>
+                    <div class="template-name">Birthday Celebration</div>
+                </div>
+
+                <div class="template-card" onclick="selectTemplate(3)">
+                    <div class="template-preview">
+                        <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 900'%3E%3Cdefs%3E%3ClinearGradient id='bg' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23a0b0b0'/%3E%3Cstop offset='100%25' style='stop-color:%238a9a9a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1200' height='900' fill='url(%23bg)'/%3E%3Cg%3E%3Crect x='110' y='65' width='470' height='365' rx='20' fill='white'/%3E%3Ccircle cx='545' cy='95' r='5' fill='%23555'/%3E%3Ccircle cx='560' cy='95' r='5' fill='%23555'/%3E%3Ccircle cx='575' cy='95' r='5' fill='%23555'/%3E%3Crect x='135' y='115' width='420' height='280' fill='%23d4e8f7'/%3E%3Cellipse cx='200' cy='170' rx='45' ry='35' fill='white' opacity='0.8'/%3E%3Cellipse cx='350' cy='150' rx='70' ry='45' fill='white' opacity='0.9'/%3E%3Cpath d='M 135 315 Q 200 290 270 310 T 420 305 T 555 315 V 395 H 135 Z' fill='%2385a830'/%3E%3Cpath d='M 135 330 Q 200 305 270 325 T 420 320 T 555 330 V 395 H 135 Z' fill='%23a8c957' opacity='0.7'/%3E%3Cpath d='M 150 410 L 155 400 L 165 400 L 170 410 L 165 420 L 155 420 Z' fill='%23769fac'/%3E%3C/g%3E%3Cg%3E%3Crect x='620' y='65' width='470' height='365' rx='20' fill='white'/%3E%3Ccircle cx='1055' cy='95' r='5' fill='%23555'/%3E%3Ccircle cx='1070' cy='95' r='5' fill='%23555'/%3E%3Ccircle cx='1085' cy='95' r='5' fill='%23555'/%3E%3Crect x='645' y='115' width='420' height='280' fill='%23d4e8f7'/%3E%3Cellipse cx='710' cy='170' rx='45' ry='35' fill='white' opacity='0.8'/%3E%3Cellipse cx='860' cy='150' rx='70' ry='45' fill='white' opacity='0.9'/%3E%3Cpath d='M 645 315 Q 710 290 780 310 T 930 305 T 1065 315 V 395 H 645 Z' fill='%2385a830'/%3E%3Cpath d='M 645 330 Q 710 305 780 325 T 930 320 T 1065 330 V 395 H 645 Z' fill='%23a8c957' opacity='0.7'/%3E%3Cpath d='M 660 410 L 665 400 L 675 400 L 680 410 L 675 420 L 665 420 Z' fill='%23769fac'/%3E%3C/g%3E%3Cg%3E%3Crect x='110' y='470' width='470' height='365' rx='20' fill='white'/%3E%3Ccircle cx='545' cy='500' r='5' fill='%23555'/%3E%3Ccircle cx='560' cy='500' r='5' fill='%23555'/%3E%3Ccircle cx='575' cy='500' r='5' fill='%23555'/%3E%3Crect x='135' y='520' width='420' height='280' fill='%23d4e8f7'/%3E%3Cellipse cx='200' cy='575' rx='45' ry='35' fill='white' opacity='0.8'/%3E%3Cellipse cx='350' cy='555' rx='70' ry='45' fill='white' opacity='0.9'/%3E%3Cpath d='M 135 720 Q 200 695 270 715 T 420 710 T 555 720 V 800 H 135 Z' fill='%2385a830'/%3E%3Cpath d='M 135 735 Q 200 710 270 730 T 420 725 T 555 735 V 800 H 135 Z' fill='%23a8c957' opacity='0.7'/%3E%3Cpath d='M 150 815 L 155 805 L 165 805 L 170 815 L 165 825 L 155 825 Z' fill='%23769fac'/%3E%3C/g%3E%3Cg%3E%3Crect x='620' y='470' width='470' height='365' rx='20' fill='white'/%3E%3Ccircle cx='1055' cy='500' r='5' fill='%23555'/%3E%3Ccircle cx='1070' cy='500' r='5' fill='%23555'/%3E%3Ccircle cx='1085' cy='500' r='5' fill='%23555'/%3E%3Crect x='645' y='520' width='420' height='280' fill='%23d4e8f7'/%3E%3Cellipse cx='710' cy='575' rx='45' ry='35' fill='white' opacity='0.8'/%3E%3Cellipse cx='860' cy='555' rx='70' ry='45' fill='white' opacity='0.9'/%3E%3Cpath d='M 645 720 Q 710 695 780 715 T 930 710 T 1065 720 V 800 H 645 Z' fill='%2385a830'/%3E%3Cpath d='M 645 735 Q 710 710 780 730 T 930 725 T 1065 735 V 800 H 645 Z' fill='%23a8c957' opacity='0.7'/%3E%3Cpath d='M 660 815 L 665 805 L 675 805 L 680 815 L 675 825 L 665 825 Z' fill='%23769fac'/%3E%3C/g%3E%3C/svg%3E" alt="Template 3">
+                    </div>
+                    <div class="template-name">Polaroid Classic</div>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <button class="btn btn-primary" onclick="startPhotoSession()" id="btnStart" disabled>Mulai Foto</button>
+            </div>
+        </div>
+
+        <!-- Step 2: Camera -->
+        <div id="stepCamera" class="step">
+            <div class="camera-container">
+                <div class="photo-progress">
+                    <div class="photo-indicator current" id="indicator0">1</div>
+                    <div class="photo-indicator" id="indicator1">2</div>
+                    <div class="photo-indicator" id="indicator2">3</div>
+                    <div class="photo-indicator" id="indicator3">4</div>
+                </div>
+                
+                <video id="video" autoplay playsinline></video>
+                <div id="countdownDisplay"></div>
+                
+                <button class="btn btn-success" onclick="takePhoto()" id="btnCapture">Ambil Foto</button>
+                <button class="btn btn-secondary" onclick="cancelSession()">Batal</button>
+            </div>
+        </div>
+
+        <!-- Step 3: Result -->
+        <div id="stepResult" class="step">
+            <div class="result-container">
+                <h2 style="margin-bottom: 30px;">Hasil Foto Anda! 🎉</h2>
+                <canvas id="resultCanvas"></canvas>
+                <br>
+                <button class="btn btn-primary" onclick="downloadImage()">💾 Download Foto</button>
+                <button class="btn btn-secondary" onclick="reset()">🔄 Buat Lagi</button>
+            </div>
+        </div>
+
+        <canvas id="captureCanvas"></canvas>
+    </div>
+
+    <script>
+        let selectedTemplate = null;
+        let photos = [];
+        let currentPhotoIndex = 0;
+        let stream = null;
+
+        // Template dengan posisi PERSIS seperti gambar yang diupload
+        const templates = {
+            1: {
+                name: 'Social Media Grid',
+                layout: [
+                    { x: 125, y: 105, w: 475, h: 330 },
+                    { x: 625, y: 105, w: 475, h: 330 },
+                    { x: 125, y: 470, w: 475, h: 330 },
+                    { x: 625, y: 470, w: 475, h: 330 }
+                ],
+                bg: { type: 'gradient', colors: ['#a8b5b8', '#94a5a8'] },
+                hearts: [
+                    { x: 160, y: 410 },
+                    { x: 660, y: 410 },
+                    { x: 160, y: 775 },
+                    { x: 660, y: 775 }
+                ]
+            },
+            2: {
+                name: 'Birthday Celebration',
+                layout: [
+                    { x: 50, y: 280, w: 470, h: 260 },
+                    { x: 560, y: 100, w: 580, h: 440 },
+                    { x: 50, y: 565, w: 360, h: 240 },
+                    { x: 430, y: 565, w: 360, h: 240 }
+                ],
+                bg: { type: 'gradient', colors: ['#b8d4e8', '#a8c8dc'] },
+                decorations: true
+            },
+            3: {
+                name: 'Polaroid Classic',
+                layout: [
+                    { x: 110, y: 65, w: 470, h: 365 },
+                    { x: 620, y: 65, w: 470, h: 365 },
+                    { x: 110, y: 470, w: 470, h: 365 },
+                    { x: 620, y: 470, w: 470, h: 365 }
+                ],
+                bg: { type: 'gradient', colors: ['#a0b0b0', '#8a9a9a'] },
+                polaroid: true
+            }
+        };
+
+        function selectTemplate(id) {
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            event.target.closest('.template-card').classList.add('selected');
+            selectedTemplate = id;
+            document.getElementById('btnStart').disabled = false;
+        }
+
+        async function startPhotoSession() {
+            if (!selectedTemplate) {
+                alert('Pilih template terlebih dahulu!');
+                return;
+            }
+
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user', width: 1280, height: 720 } 
+                });
+                document.getElementById('video').srcObject = stream;
+                
+                showStep('stepCamera');
+                photos = [];
+                currentPhotoIndex = 0;
+                updateIndicators();
+            } catch (err) {
+                alert('Tidak dapat mengakses kamera: ' + err.message);
+            }
+        }
+
+        function takePhoto() {
+            let countdown = 3;
+            document.getElementById('btnCapture').disabled = true;
+            
+            const countdownInterval = setInterval(() => {
+                if (countdown > 0) {
+                    document.getElementById('countdownDisplay').innerHTML = 
+                        `<div class="countdown">${countdown}</div>`;
+                    countdown--;
+                } else {
+                    clearInterval(countdownInterval);
+                    document.getElementById('countdownDisplay').innerHTML = '';
+                    capturePhoto();
+                }
+            }, 1000);
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('captureCanvas');
+            
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0);
+            
+            photos.push(canvas.toDataURL('image/png'));
+            currentPhotoIndex++;
+            
+            updateIndicators();
+            
+            if (photos.length < 4) {
+                document.getElementById('btnCapture').disabled = false;
+            } else {
+                stopCamera();
+                generateFinalImage();
+                showStep('stepResult');
+            }
+        }
+
+        function updateIndicators() {
+            for (let i = 0; i < 4; i++) {
+                const indicator = document.getElementById(`indicator${i}`);
+                indicator.classList.remove('taken', 'current');
+                
+                if (i < currentPhotoIndex) {
+                    indicator.classList.add('taken');
+                    indicator.textContent = '✓';
+                } else if (i === currentPhotoIndex) {
+                    indicator.classList.add('current');
+                    indicator.textContent = i + 1;
+                } else {
+                    indicator.textContent = i + 1;
+                }
+            }
+        }
+
+        function generateFinalImage() {
+            const canvas = document.getElementById('resultCanvas');
+            canvas.width = 1200;
+            canvas.height = 900;
+            const ctx = canvas.getContext('2d');
+            
+            const template = templates[selectedTemplate];
+            
+            // Background gradient
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, template.bg.colors[0]);
+            gradient.addColorStop(1, template.bg.colors[1]);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Decorations for birthday template
+            if (template.decorations) {
+                // Draw balloons at top
+                const balloons = [
+                    { x: 120, y: 45, rx: 65, ry: 70, color1: '#4a9fd8', color2: '#2a7fb8' },
+                    { x: 250, y: 25, rx: 70, ry: 75, color1: '#5aafed', color2: '#3a8fcd' },
+                    { x: 400, y: 50, rx: 60, ry: 65, color1: '#4a9fd8', color2: '#2a7fb8' },
+                    { x: 1050, y: 40, rx: 68, ry: 73, color1: '#5aafed', color2: '#3a8fcd' },
+                    { x: 1180, y: 820, rx: 55, ry: 60, color1: '#4a9fd8', color2: '#2a7fb8' }
+                ];
+
+                balloons.forEach(b => {
+                    const balloonGrad = ctx.createRadialGradient(b.x - 20, b.y - 20, 10, b.x, b.y, b.rx);
+                    balloonGrad.addColorStop(0, b.color1);
+                    balloonGrad.addColorStop(1, b.color2);
+                    
+                    ctx.fillStyle = balloonGrad;
+                    ctx.beginPath();
+                    ctx.ellipse(b.x, b.y, b.rx, b.ry, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // String
+                    ctx.strokeStyle = b.color2;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(b.x, b.y + b.ry);
+                    ctx.quadraticCurveTo(b.x - 5, b.y + b.ry + 10, b.x - 10, b.y + b.ry + 25);
+                    ctx.stroke();
+                });
+
+                // Ribbons (curved lines)
+                ctx.strokeStyle = '#2a7fb8';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.6;
+                ctx.beginPath();
+                ctx.moveTo(250, 60);
+                ctx.quadraticCurveTo(350, 80, 450, 60);
+                ctx.quadraticCurveTo(550, 40, 650, 55);
+                ctx.quadraticCurveTo(750, 70, 850, 50);
+                ctx.quadraticCurveTo(950, 35, 1050, 45);
+                ctx.stroke();
+
+                ctx.strokeStyle = '#3a8fcd';
+                ctx.lineWidth = 3;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.moveTo(280, 85);
+                ctx.quadraticCurveTo(370, 95, 460, 88);
+                ctx.quadraticCurveTo(560, 75, 660, 82);
+                ctx.quadraticCurveTo(760, 92, 860, 78);
+                ctx.quadraticCurveTo(960, 68, 1040, 75);
+                ctx.stroke();
+                ctx.globalAlpha = 1.0;
+
+                // Bow at bottom left
+                ctx.fillStyle = '#2a7fb8';
+                ctx.beginPath();
+                ctx.moveTo(30, 850);
+                ctx.quadraticCurveTo(35, 840, 45, 845);
+                ctx.lineTo(50, 860);
+                ctx.quadraticCurveTo(45, 870, 35, 865);
+                ctx.closePath();
+                ctx.fill();
+
+                // Bow ribbons
+                ctx.strokeStyle = '#2a7fb8';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(35, 845);
+                ctx.lineTo(32, 865);
+                ctx.lineTo(28, 880);
+                ctx.lineTo(25, 895);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(45, 850);
+                ctx.lineTo(48, 868);
+                ctx.lineTo(52, 883);
+                ctx.lineTo(55, 898);
+                ctx.stroke();
+
+                // HAPPY BIRTHDAY text
+                ctx.fillStyle = '#1e3a5f';
+                ctx.font = 'bold 70px Georgia, serif';
+                ctx.letterSpacing = '-2px';
+                ctx.fillText('HAPPY', 45, 150);
+                ctx.fillText('BIRTHDAY', 45, 230);
+                
+                // Website text at bottom right
+                ctx.font = '20px Arial, sans-serif';
+                ctx.fillText('www.reallygreatsite.com', 880, 885);
+                
+                // Footer by niko dwi novana
+                ctx.font = 'italic 18px Arial, sans-serif';
+                ctx.fillStyle = '#1e3a5f';
+                ctx.fillText('by niko dwi novana', 50, 885);
+            }
+            
+            // Draw photo frames
+            let loadedCount = 0;
+            const totalPhotos = photos.length;
+            
+            photos.forEach((photoData, index) => {
+                const img = new Image();
+                img.onload = () => {
+                    const layout = template.layout[index];
+                    
+                    if (template.polaroid) {
+                        // Polaroid style with rounded corners and dots
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.15)';
+                        ctx.shadowBlur = 15;
+                        ctx.shadowOffsetX = 5;
+                        ctx.shadowOffsetY = 5;
+                        
+                        ctx.fillStyle = 'white';
+                        ctx.beginPath();
+                        ctx.roundRect(layout.x, layout.y, layout.w, layout.h, 20);
+                        ctx.fill();
+                        
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        
+                        // Three dots menu
+                        const dotsX = layout.x + layout.w - 35;
+                        const dotsY = layout.y + 30;
+                        ctx.fillStyle = '#555';
+                        for (let i = 0; i < 3; i++) {
+                            ctx.beginPath();
+                            ctx.arc(dotsX + (i * 15), dotsY, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        
+                        // Photo area with padding
+                        const photoX = layout.x + 25;
+                        const photoY = layout.y + 50;
+                        const photoW = layout.w - 50;
+                        const photoH = layout.h - 80;
+                        
+                        const imgAspect = img.width / img.height;
+                        const frameAspect = photoW / photoH;
+                        
+                        let drawW, drawH, drawX, drawY;
+                        
+                        if (imgAspect > frameAspect) {
+                            drawH = photoH;
+                            drawW = photoH * imgAspect;
+                            drawX = photoX - (drawW - photoW) / 2;
+                            drawY = photoY;
+                        } else {
+                            drawW = photoW;
+                            drawH = photoW / imgAspect;
+                            drawX = photoX;
+                            drawY = photoY - (drawH - photoH) / 2;
+                        }
+                        
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(photoX, photoY, photoW, photoH);
+                        ctx.clip();
+                        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                        ctx.restore();
+                        
+                        // Heart icon at bottom
+                        const heartX = layout.x + 40;
+                        const heartY = layout.y + layout.h - 25;
+                        drawHeart(ctx, heartX, heartY, 15, '#769fac');
+                    } else {
+                        // Simple white border style
+                        ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+                        ctx.shadowBlur = 8;
+                        ctx.shadowOffsetX = 3;
+                        ctx.shadowOffsetY = 3;
+                        ctx.fillStyle = 'white';
+                        ctx.fillRect(layout.x - 8, layout.y - 8, layout.w + 16, layout.h + 16);
+                        
+                        ctx.shadowColor = 'transparent';
+                        ctx.shadowBlur = 0;
+                        ctx.shadowOffsetX = 0;
+                        ctx.shadowOffsetY = 0;
+                        
+                        const imgAspect = img.width / img.height;
+                        const frameAspect = layout.w / layout.h;
+                        
+                        let drawW, drawH, drawX, drawY;
+                        
+                        if (imgAspect > frameAspect) {
+                            drawH = layout.h;
+                            drawW = layout.h * imgAspect;
+                            drawX = layout.x - (drawW - layout.w) / 2;
+                            drawY = layout.y;
+                        } else {
+                            drawW = layout.w;
+                            drawH = layout.w / imgAspect;
+                            drawX = layout.x;
+                            drawY = layout.y - (drawH - layout.h) / 2;
+                        }
+                        
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.rect(layout.x, layout.y, layout.w, layout.h);
+                        ctx.clip();
+                        ctx.drawImage(img, drawX, drawY, drawW, drawH);
+                        ctx.restore();
+                    }
+                    
+                    loadedCount++;
+                    
+                    // Draw hearts for template 1 after all photos loaded
+                    if (loadedCount === totalPhotos && template.hearts) {
+                        template.hearts.forEach(heart => {
+                            drawHeart(ctx, heart.x, heart.y, 20, '#6b8e95');
+                        });
+                    }
+                };
+                img.src = photoData;
+            });
+        }
+
+        function drawHeart(ctx, x, y, size, color) {
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.bezierCurveTo(x, y - size/2, x - size/2, y - size/2, x - size/2, y);
+            ctx.bezierCurveTo(x - size/2, y + size/3, x, y + size/2, x, y + size);
+            ctx.bezierCurveTo(x, y + size/2, x + size/2, y + size/3, x + size/2, y);
+            ctx.bezierCurveTo(x + size/2, y - size/2, x, y - size/2, x, y);
+            ctx.fill();
+        }
+
+        function downloadImage() {
+            const canvas = document.getElementById('resultCanvas');
+            const link = document.createElement('a');
+            link.download = `photobox-${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+
+        function cancelSession() {
+            stopCamera();
+            reset();
+        }
+
+        function reset() {
+            stopCamera();
+            photos = [];
+            currentPhotoIndex = 0;
+            selectedTemplate = null;
+            document.getElementById('btnStart').disabled = true;
+            document.querySelectorAll('.template-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            showStep('stepTemplate');
+        }
+
+        function showStep(stepId) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(stepId).classList.add('active');
+        }
+    </script>
+</body>
+</html>
